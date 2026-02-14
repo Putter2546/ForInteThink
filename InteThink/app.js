@@ -1112,9 +1112,11 @@ function initializeParking() {
 function updateParkingData() {
     const total = mockParkingData.reduce((sum, p) => sum + p.total, 0);
     const available = mockParkingData.reduce((sum, p) => sum + p.available, 0);
+    const occupied = total - available;
 
     document.getElementById('totalParking').textContent = total;
     document.getElementById('availableParking').textContent = available;
+    document.getElementById('occupiedParking').textContent = occupied;
 
     const parkingList = document.getElementById('parkingList');
     parkingList.innerHTML = mockParkingData.map(parking => {
