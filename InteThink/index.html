@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>ระบบจราจรอัจฉริยะ - สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* LINESeedSansTH Font Face Declarations */
+        @font-face {
+            font-family: 'LINESeedSansTH';
+            src: url('fonts/LINESeedSansTH_W_Th.woff2') format('woff2');
+            font-weight: 100;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'LINESeedSansTH';
+            src: url('fonts/LINESeedSansTH_W_Rg.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'LINESeedSansTH';
+            src: url('fonts/LINESeedSansTH_W_Bd.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'LINESeedSansTH';
+            src: url('fonts/LINESeedSansTH_W_He.woff2') format('woff2');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'LINESeedSansTH';
+            src: url('fonts/LINESeedSansTH_W_XBd.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        * { 
+            font-family: 'LINESeedSansTH', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+        }
+        .traffic-indicator {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        /* Smooth scrolling for tabs */
+        .tab-nav {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+        .tab-nav::-webkit-scrollbar {
+            height: 4px;
+        }
+        .tab-nav::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 2px;
+        }
+        /* Touch-friendly buttons */
+        @media (max-width: 640px) {
+            button, .tab-btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+        /* Map styles */
+        #map {
+            height: calc(100vh - 200px);
+            min-height: 500px;
+            width: 100%;
+            z-index: 1;
+        }
+        @media (max-width: 640px) {
+            #map {
+                height: calc(100vh - 180px);
+                min-height: 400px;
+            }
+        }
+        .leaflet-container {
+            background: #f5f5f5;
+        }
+        .vehicle-marker {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        .traffic-marker {
+            animation: pulse-marker 2s ease-in-out infinite;
+        }
+        @keyframes pulse-marker {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .search-container {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        /* Filter Button Styles */
+        .filter-btn.active {
+            background: #f3f4f6 !important;
+            border-color: rgba(0, 0, 0, 0.25) !important;
+            font-weight: 600;
+        }
+        /* Top Navigation Bar (Light Theme) */
+        .bottom-nav {
+            background: transparent;
+            border-radius: 0;
+            padding: 0;
+            box-shadow: none;
+            margin-bottom: 0;
+        }
+        .bottom-nav-container {
+            max-width: 100%;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            background: transparent;
+            border: none;
+            min-width: 60px;
+        }
+        .nav-item.active {
+            background: transparent;
+        }
+        .nav-item:hover {
+            opacity: 0.7;
+        }
+        .nav-item:active {
+            transform: scale(0.95);
+        }
+        .nav-icon {
+            font-size: 18px;
+            color: #1f2937;
+            margin-bottom: 4px;
+            transition: color 0.2s ease;
+            display: block;
+        }
+        .nav-item.active .nav-icon {
+            color: #1f2937;
+        }
+        .nav-label {
+            font-size: 11px;
+            color: #1f2937;
+            font-weight: 500;
+            transition: color 0.2s ease;
+            text-align: center;
+            line-height: 1.2;
+            font-family: 'LINESeedSansTH', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .nav-item.active .nav-label {
+            font-weight: 600;
+        }
+        .nav-add-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            background: transparent;
+            border: none;
+            min-width: 60px;
+        }
+        .nav-add-btn:hover {
+            opacity: 0.7;
+        }
+        .nav-add-btn:active {
+            transform: scale(0.95);
+        }
+        .nav-add-btn-text {
+            color: #1f2937;
+            font-size: 11px;
+            font-weight: 500;
+            font-family: 'LINESeedSansTH', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .nav-add-btn.active .nav-add-btn-text {
+            font-weight: 600;
+        }
+        .nav-add-btn .nav-icon {
+            margin-bottom: 4px;
+        }
+        /* Burger Menu */
+        .burger-menu-btn {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            gap: 4px;
+        }
+        .burger-menu-btn span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: #1f2937;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+        .burger-menu-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+        .burger-menu-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+        .burger-menu-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+        /* Mobile Menu Drawer */
+        .mobile-menu-drawer {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 280px;
+            max-width: 85vw;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+        .mobile-menu-drawer.open {
+            right: 0;
+        }
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .mobile-menu-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .mobile-menu-header {
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mobile-menu-content {
+            padding: 16px;
+        }
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .mobile-nav-item.active {
+            background: #f3f4f6;
+        }
+        .mobile-nav-item:hover {
+            background: #f9fafb;
+        }
+        .mobile-nav-item .nav-icon {
+            font-size: 20px;
+            margin-right: 12px;
+            margin-bottom: 0;
+            width: 24px;
+            text-align: center;
+        }
+        .mobile-nav-item .nav-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .mobile-nav-item.active .nav-label {
+            font-weight: 600;
+        }
+        /* Responsive: Hide desktop menu, show burger on mobile */
+        @media (max-width: 1023px) {
+            .bottom-nav {
+                display: none;
+            }
+            .burger-menu-btn {
+                display: flex;
+            }
+        }
+        /* Adjust content padding for bottom nav - handled inline */
+        @media (min-width: 768px) {
+            .bottom-nav {
+                padding: 0;
+            }
+            .bottom-nav-container {
+                gap: 12px;
+            }
+            .nav-item {
+                padding: 8px 12px;
+                min-width: 60px;
+            }
+            .nav-icon {
+                font-size: 20px;
+                margin-bottom: 4px;
+            }
+            .nav-label {
+                font-size: 11px;
+            }
+            .nav-add-btn {
+                padding: 8px 12px;
+                min-width: 60px;
+            }
+            .nav-add-btn-text {
+                font-size: 11px;
+            }
+            .nav-add-btn .nav-icon {
+                font-size: 20px;
+                margin-bottom: 4px;
+            }
+        }
+        @media (min-width: 1024px) {
+            .bottom-nav-container {
+                gap: 16px;
+            }
+            .nav-item {
+                padding: 8px 12px;
+                min-width: 65px;
+            }
+            .nav-add-btn {
+                padding: 8px 12px;
+                min-width: 65px;
+            }
+        }
+        @media (max-width: 640px) {
+            .nav-item {
+                padding: 8px 12px;
+                min-width: 70px;
+            }
+            .nav-label {
+                font-size: 10px;
+            }
+            .nav-add-btn {
+                padding: 8px 12px;
+                min-width: 70px;
+            }
+            .nav-add-btn-text {
+                font-size: 10px;
+            }
+            .nav-add-btn .nav-icon {
+                font-size: 18px;
+                margin-bottom: 4px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Header (Floating) -->
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 pt-4 sm:pt-6 pb-2">
+        <nav class="bg-white rounded-xl shadow-sm p-3 sm:p-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
+                <div class="flex items-center justify-between lg:justify-start space-x-2 min-w-0 flex-1">
+                    <div class="flex items-center space-x-2 min-w-0 flex-1">
+                        <i class="fas fa-route text-blue-600 text-xl sm:text-2xl flex-shrink-0"></i>
+                        <h1 class="text-base sm:text-xl font-semibold text-gray-800 truncate">KMITL: Traffic & Shuttle System</h1>
+                    </div>
+                    <!-- Burger Menu Button (Mobile) -->
+                    <button id="burgerMenuBtn" class="burger-menu-btn lg:hidden flex-shrink-0">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </div>
+                <div class="flex items-center justify-end gap-2 flex-shrink-0 hidden lg:flex">
+                    <!-- Navigation Menu (Desktop) -->
+                    <nav class="bottom-nav flex-none">
+                        <div class="bottom-nav-container">
+                            <div class="nav-item active" data-tab="traffic">
+                                <i class="fas fa-home nav-icon"></i>
+                                <span class="nav-label">หน้าแรก</span>
+                            </div>
+                            <div class="nav-item" data-tab="prediction">
+                                <i class="fas fa-clock nav-icon"></i>
+                                <span class="nav-label">พยากรณ์</span>
+                            </div>
+                            <div class="nav-item" data-tab="route">
+                                <i class="fas fa-directions nav-icon"></i>
+                                <span class="nav-label">เส้นทาง</span>
+                            </div>
+                            <div class="nav-add-btn" id="addBtn">
+                                <i class="fas fa-exclamation-circle nav-icon"></i>
+                                <span class="nav-add-btn-text">รายงานปัญหา</span>
+                            </div>
+                            <div class="nav-item" data-tab="parking">
+                                <i class="fas fa-parking nav-icon"></i>
+                                <span class="nav-label">จอดรถ</span>
+                            </div>
+                            <div class="nav-item" data-tab="shuttle">
+                                <i class="fas fa-bus nav-icon"></i>
+                                <span class="nav-label">รถรับส่ง</span>
+                            </div>
+                        </div>
+                    </nav>
+                    <!-- Notification Button (Desktop) -->
+                    <div id="notificationBtn" class="nav-item relative flex-shrink-0" style="cursor: pointer;">
+                        <i class="fas fa-bell nav-icon"></i>
+                        <span class="nav-label">แจ้งเตือน</span>
+                        <span id="notificationBadge" class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden" style="font-size: 8px;">3</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
+
+        <!-- Tab Contents -->
+        <!-- 1. Real-time Traffic -->
+        <div id="traffic" class="tab-content">
+            <!-- Nearby & Shuttle Info Bar (Above Search) -->
+            <div id="nearbyInfoBar" class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-blue-600"></i>
+                        <span class="text-gray-700">คุณอยู่ใกล้</span>
+                        <span id="nearestPOIName" class="font-semibold text-blue-700">--</span>
+                        <span class="text-gray-700">มากที่สุด</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <i class="fas fa-bus text-blue-600"></i>
+                        <span id="shuttleRouteName" class="font-semibold text-blue-700">--</span>
+                        <span class="text-gray-500">|</span>
+                        <span class="text-gray-700">รถคันที่</span>
+                        <span id="shuttleVehicleId" class="font-semibold text-blue-700">--</span>
+                        <span class="text-gray-700">จะมาในอีก</span>
+                        <span id="shuttleArrivalMins" class="font-semibold text-blue-700">--</span>
+                        <span class="text-gray-700">นาที</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Bar Section (Above Map) -->
+            <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <!-- Search Bar -->
+                    <div class="flex-1 w-full sm:w-auto">
+                        <div class="search-container rounded-full shadow-sm border border-gray-200">
+                            <div class="flex items-center px-4 py-2.5">
+                                <i class="fas fa-search text-gray-400 mr-3"></i>
+                                <input type="text" id="mapSearch" placeholder="ค้นหาเส้นทาง / สถานที่ / จุดจอดรถ" 
+                                       class="flex-1 bg-transparent border-none outline-none text-sm sm:text-base text-gray-700 placeholder-gray-400">
+                                <button id="clearSearch" class="hidden ml-2 text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Real-time Indicator -->
+                    <div class="bg-gray-50 rounded-full px-3 py-2 flex items-center space-x-2 border border-gray-200 flex-shrink-0">
+                        <span class="traffic-indicator w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span class="text-xs sm:text-sm text-gray-700 font-medium">เวลาตอนนี้</span>
+                        <span class="text-xs text-gray-500" id="lastUpdate">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Buttons (Above Map) -->
+            <div class="mb-4 flex space-x-2 overflow-x-auto pb-2 tab-nav">
+                <button class="filter-btn active px-3 py-1.5 bg-gray-50 text-gray-700 rounded-full text-xs whitespace-nowrap flex-shrink-0 border border-gray-200 hover:bg-gray-100 transition shadow-sm" data-filter="all">
+                    <i class="fas fa-map-marked-alt mr-1"></i>ทั้งหมด
+                </button>
+                <button class="filter-btn px-3 py-1.5 bg-gray-50 text-gray-700 rounded-full text-xs whitespace-nowrap flex-shrink-0 border border-gray-200 hover:bg-gray-100 transition shadow-sm" data-filter="traffic">
+                    <i class="fas fa-traffic-light mr-1"></i>สภาพจราจร
+                </button>
+                <button class="filter-btn px-3 py-1.5 bg-gray-50 text-gray-700 rounded-full text-xs whitespace-nowrap flex-shrink-0 border border-gray-200 hover:bg-gray-100 transition shadow-sm" data-filter="parking">
+                    <i class="fas fa-parking mr-1"></i>ที่จอดรถ
+                </button>
+                <button class="filter-btn px-3 py-1.5 bg-gray-50 text-gray-700 rounded-full text-xs whitespace-nowrap flex-shrink-0 border border-gray-200 hover:bg-gray-100 transition shadow-sm" data-filter="shuttle">
+                    <i class="fas fa-bus mr-1"></i>รถรับส่ง
+                </button>
+                <button class="filter-btn px-3 py-1.5 bg-gray-50 text-gray-700 rounded-full text-xs whitespace-nowrap flex-shrink-0 border border-gray-200 hover:bg-gray-100 transition shadow-sm" data-filter="building">
+                    <i class="fas fa-building mr-1"></i>อาคาร
+                </button>
+            </div>
+
+            <!-- Map and Announcements Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 sm:mb-6">
+                <!-- Map Container -->
+                <div class="lg:col-span-2 relative bg-white rounded-lg shadow-sm overflow-hidden" style="min-height: 500px;">
+                    <!-- Map -->
+                    <div id="map"></div>
+
+                    <!-- Current Location Button -->
+                    <button id="currentLocationBtn" class="absolute bottom-4 left-4 z-[1000] bg-white rounded-full p-3 shadow-lg hover:bg-gray-50 transition">
+                        <i class="fas fa-map-marker-alt text-gray-700"></i>
+                    </button>
+
+                    <!-- Traffic Stats Overlay -->
+                    <div class="absolute bottom-4 right-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg hidden sm:block">
+                        <div class="flex items-center space-x-4 text-xs">
+                            <div class="flex items-center space-x-1">
+                                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span class="text-gray-700" id="normalRoutes">0</span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                                <span class="text-gray-700" id="lightTraffic">0</span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                                <span class="text-gray-700" id="heavyTraffic">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Announcements Panel (Outside Map) -->
+                <div id="mapAnnouncements" class="bg-white rounded-lg shadow-sm p-4">
+                    <div class="mb-3">
+                        <h3 class="text-sm font-semibold text-gray-800">แจ้งเตือน</h3>
+                    </div>
+                    <div id="mapAnnouncementsList" class="space-y-2 max-h-[60vh] overflow-y-auto">
+                        <!-- Announcements will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Traffic List (Collapsible) -->
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <div class="flex items-center justify-between mb-3 sm:mb-4">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-800">รายละเอียดเส้นทาง</h3>
+                    <button id="toggleTrafficList" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div id="trafficList" class="space-y-2 sm:space-y-3">
+                    <!-- Traffic items will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Traffic Prediction -->
+        <div id="prediction" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">พยากรณ์ช่วงเวลารถติด</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">เลือกเส้นทาง</label>
+                        <select id="routeSelect" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm">
+                            <option value="">-- เลือกเส้นทาง --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">เลือกวันที่</label>
+                        <input type="date" id="dateSelect" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm">
+                    </div>
+                </div>
+                <div id="predictionResult" class="mt-6">
+                    <!-- Prediction results will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Route Recommendation -->
+        <div id="route" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">แนะนำเส้นทางที่เหมาะสม</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">จุดเริ่มต้น</label>
+                        <input type="text" id="originInput" placeholder="เช่น สยาม" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">จุดหมายปลายทาง</label>
+                        <input type="text" id="destinationInput" placeholder="เช่น อนุสาวรีย์ชัยสมรภูมิ" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm">
+                    </div>
+                </div>
+                <button id="findRouteBtn" class="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition font-medium text-sm sm:text-base">
+                    <i class="fas fa-search mr-2"></i>ค้นหาเส้นทาง
+                </button>
+                <div id="routeResults" class="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
+                    <!-- Route results will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Parking System -->
+        <div id="parking" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">ระบบที่จอดรถ</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                    <div class="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs sm:text-sm text-gray-600">ที่จอดว่าง</p>
+                                <p class="text-2xl sm:text-3xl font-bold text-blue-700" id="availableParking">45</p>
+                            </div>
+                            <i class="fas fa-parking text-blue-500 text-3xl sm:text-4xl"></i>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-3 sm:p-4 border border-yellow-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs sm:text-sm text-gray-600">กำลังจอด</p>
+                                <p class="text-2xl sm:text-3xl font-bold text-yellow-700" id="occupiedParking">120</p>
+                            </div>
+                            <i class="fas fa-car text-yellow-500 text-3xl sm:text-4xl"></i>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs sm:text-sm text-gray-600">ทั้งหมด</p>
+                                <p class="text-2xl sm:text-3xl font-bold text-gray-700" id="totalParking">165</p>
+                            </div>
+                            <i class="fas fa-list text-gray-500 text-3xl sm:text-4xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div id="parkingList" class="space-y-2 sm:space-y-3">
+                    <!-- Parking locations will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Shuttle/Bus System -->
+        <div id="shuttle" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">ระบบรถรับส่ง (Shuttle / Bus)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">เลือกเส้นทาง</label>
+                        <select id="shuttleRouteSelect" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm">
+                            <option value="">-- เลือกเส้นทาง --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">สถานี</label>
+                        <select id="shuttleStationSelect" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm">
+                            <option value="">-- เลือกสถานี --</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="shuttleInfo" class="space-y-4">
+                    <!-- Shuttle information will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Notifications & Announcements -->
+        <div id="notifications" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">แจ้งเตือนและประกาศ</h2>
+                <div id="announcementsList" class="space-y-3 sm:space-y-4">
+                    <!-- Announcements will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. User Reporting -->
+        <div id="report" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800 mb-4 sm:mb-6">รายงานปัญหา</h2>
+                <form id="reportForm" class="space-y-3 sm:space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
+                        <select id="reportType" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm" required>
+                            <option value="">-- เลือกประเภท --</option>
+                            <option value="accident">อุบัติเหตุ</option>
+                            <option value="traffic">รถติด</option>
+                            <option value="roadwork">งานซ่อมถนน</option>
+                            <option value="hazard">สิ่งกีดขวาง</option>
+                            <option value="other">อื่นๆ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">สถานที่</label>
+                        <input type="text" id="reportLocation" placeholder="ระบุสถานที่" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">รายละเอียด</label>
+                        <textarea id="reportDescription" rows="4" placeholder="อธิบายรายละเอียดปัญหา" class="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm" required></textarea>
+                    </div>
+                    <button type="submit" class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition font-medium text-sm sm:text-base">
+                        <i class="fas fa-paper-plane mr-2"></i>ส่งรายงาน
+                    </button>
+                </form>
+                <div id="reportedIssues" class="mt-6 sm:mt-8">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">รายงานที่ส่งแล้ว</h3>
+                    <div id="reportsList" class="space-y-2 sm:space-y-3">
+                        <!-- Reports will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Drawer -->
+    <div id="mobileMenuOverlay" class="mobile-menu-overlay"></div>
+    <div id="mobileMenuDrawer" class="mobile-menu-drawer">
+        <div class="mobile-menu-header">
+            <h3 class="text-lg font-semibold text-gray-800">เมนู</h3>
+            <button id="closeMobileMenu" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="mobile-menu-content">
+            <div class="mobile-nav-item active" data-tab="traffic">
+                <i class="fas fa-home nav-icon"></i>
+                <span class="nav-label">หน้าแรก</span>
+            </div>
+            <div class="mobile-nav-item" data-tab="prediction">
+                <i class="fas fa-clock nav-icon"></i>
+                <span class="nav-label">พยากรณ์</span>
+            </div>
+            <div class="mobile-nav-item" data-tab="route">
+                <i class="fas fa-directions nav-icon"></i>
+                <span class="nav-label">เส้นทาง</span>
+            </div>
+            <div class="mobile-nav-item" id="mobileAddBtn">
+                <i class="fas fa-exclamation-circle nav-icon"></i>
+                <span class="nav-label">รายงานปัญหา</span>
+            </div>
+            <div class="mobile-nav-item" data-tab="parking">
+                <i class="fas fa-parking nav-icon"></i>
+                <span class="nav-label">จอดรถ</span>
+            </div>
+            <div class="mobile-nav-item" data-tab="shuttle">
+                <i class="fas fa-bus nav-icon"></i>
+                <span class="nav-label">รถรับส่ง</span>
+            </div>
+            <div class="mobile-nav-item" id="mobileNotificationBtn">
+                <i class="fas fa-bell nav-icon"></i>
+                <span class="nav-label">แจ้งเตือน</span>
+                <span id="mobileNotificationBadge" class="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">3</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="notificationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white rounded-t-2xl sm:rounded-lg max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-y-auto shadow-xl" onclick="event.stopPropagation()">
+            <div class="p-4 sm:p-6">
+                <div class="flex items-center justify-between mb-4 sticky top-0 bg-white pb-2 border-b border-gray-200">
+                    <h3 class="text-lg sm:text-xl font-semibold text-gray-800">แจ้งเตือน</h3>
+                    <button id="closeNotificationModal" class="text-gray-400 hover:text-gray-600 active:scale-95 p-2 -mr-2">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div id="notificationContent" class="space-y-3 pt-2">
+                    <!-- Notifications will be shown here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="app.js"></script>
+</body>
+</html>
+

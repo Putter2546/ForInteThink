@@ -1,0 +1,12 @@
+{
+  "name": "intethink-traffic-system",
+  "version": "1.0.0",
+  "description": "ระบบจราจรอัจฉริยะ - Smart Traffic System",
+  "scripts": {
+    "build": "echo 'No build step required'"
+  },
+  "keywords": ["traffic", "thailand", "transportation"],
+  "author": "",
+  "license": "MIT"
+}
+
